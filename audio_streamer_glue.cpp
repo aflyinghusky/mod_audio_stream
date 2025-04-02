@@ -164,27 +164,30 @@ public:
                                           "sending initial metadata %s\n", tech_pvt->initialMetadata);
                 writeText(tech_pvt->initialMetadata);
             }
+        } else {
+            switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR,
+                              "no media bug found for session %s\n", m_sessionId.c_str());
         }
     }
 
     void eventCallback(notifyEvent_t event, const char* message) {
         switch_core_session_t* psession = switch_core_session_locate(m_sessionId.c_str());
         if(psession) {
+            std::string msgWithSessionId = std::string(message) + " (sessionId: " + m_sessionId + ")";
             switch (event) {
                 case CONNECT_SUCCESS:
                     send_initial_metadata(psession);
-                    m_notify(psession, EVENT_CONNECT, message);
+                    m_notify(psession, EVENT_CONNECT, msgWithSessionId.c_str());
                     break;
                 case CONNECTION_DROPPED:
                     switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(psession), SWITCH_LOG_INFO, "connection closed\n");
-                    m_notify(psession, EVENT_DISCONNECT, message);
+                    m_notify(psession, EVENT_DISCONNECT, msgWithSessionId.c_str());
                     break;
                 case CONNECT_ERROR:
                     switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(psession), SWITCH_LOG_INFO, "connection error\n");
-                    m_notify(psession, EVENT_ERROR, message);
+                    m_notify(psession, EVENT_ERROR, msgWithSessionId.c_str());
 
                     media_bug_close(psession);
-
                     break;
                 case MESSAGE:
                     std::string msg(message);

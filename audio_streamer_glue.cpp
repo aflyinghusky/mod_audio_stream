@@ -157,16 +157,28 @@ public:
 
     inline void send_initial_metadata(switch_core_session_t *session) {
         auto *bug = get_media_bug(session);
-        if(bug) {
-            auto* tech_pvt = (private_t*) switch_core_media_bug_get_user_data(bug);
-            if(tech_pvt && strlen(tech_pvt->initialMetadata) > 0) {
-                switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG,
-                                          "sending initial metadata %s\n", tech_pvt->initialMetadata);
-                writeText(tech_pvt->initialMetadata);
+        const char *metadata = nullptr;
+
+        if (bug) {
+            auto *tech_pvt = (private_t *) switch_core_media_bug_get_user_data(bug);
+            if (tech_pvt) {
+                metadata = tech_pvt->initialMetadata;
             }
         } else {
+            switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "No initial metadata in bug, trying channel variables\n");
+            switch_channel_t *channel = switch_core_session_get_channel(session);
+            if (channel) {
+                metadata = switch_channel_get_variable(channel, "initial_metadata");
+            }
+        }
+
+        if (metadata && strlen(metadata) > 0) {
+            switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG,
+                            "Sending initial metadata: %s\n", metadata);
+            writeText(metadata);
+        } else {
             switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR,
-                              "no media bug found for session %s\n", m_sessionId.c_str());
+                            "No initial metadata found for session\n");
         }
     }
 
@@ -342,7 +354,13 @@ namespace {
         tech_pvt->channels = channels;
         tech_pvt->audio_paused = 0;
 
-        if (metadata) strncpy(tech_pvt->initialMetadata, metadata, MAX_METADATA_LEN);
+        if (metadata) {
+            strncpy(tech_pvt->initialMetadata, metadata, MAX_METADATA_LEN);
+             switch_channel_t *channel = switch_core_session_get_channel(session);
+            if (channel) {
+                switch_channel_set_variable(channel, "initial_metadata", metadata);
+            }
+        }
 
         //size_t buflen = (FRAME_SIZE_8000 * desiredSampling / 8000 * channels * 1000 / RTP_PERIOD * BUFFERED_SEC);
         const size_t buflen = (FRAME_SIZE_8000 * desiredSampling / 8000 * channels * rtp_packets);

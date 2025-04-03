@@ -185,7 +185,13 @@ public:
     void eventCallback(notifyEvent_t event, const char* message) {
         switch_core_session_t* psession = switch_core_session_locate(m_sessionId.c_str());
         if(psession) {
-            std::string msgWithSessionId = std::string(message) + " (sessionId: " + m_sessionId + ")";
+            cJSON* jsonMsg = cJSON_CreateObject();
+            cJSON_AddStringToObject(jsonMsg, "message", message);
+            cJSON_AddStringToObject(jsonMsg, "sessionId", m_sessionId);
+            char* jsonString = cJSON_PrintUnformatted(jsonMsg);
+            std::string msgWithSessionId(jsonString);
+            cJSON_Delete(jsonMsg);
+            free(jsonString);
             switch (event) {
                 case CONNECT_SUCCESS:
                     send_initial_metadata(psession);
